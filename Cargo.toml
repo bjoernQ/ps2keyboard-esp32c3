@@ -1,0 +1,20 @@
+[package]
+name = "ps2keyboard"
+version = "0.1.0"
+authors = ["bjoernQ <bjoern.quentin@mobile-j.de>"]
+edition = "2021"
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+esp32c3-hal = { package = "esp32c3-hal", git = "https://github.com/esp-rs/esp-hal.git" }
+esp-hal-common = { package = "esp-hal-common", git = "https://github.com/esp-rs/esp-hal.git" }
+panic-halt = "0.2"
+riscv-rt = { version = "0.8", optional = true }
+riscv = "0.8.0"
+esp-println = { git = "https://github.com/esp-rs/esp-println", features = [ "esp32c3" ]}
+pc-keyboard = "0.5.1"
+const_queue = "0.1.1"
+
+[features]
+default = ["rt"]
+rt = ["riscv-rt"]
