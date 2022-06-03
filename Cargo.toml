@@ -13,7 +13,6 @@ riscv-rt = { version = "0.8", optional = true }
 riscv = "0.8.0"
 esp-println = { git = "https://github.com/esp-rs/esp-println", features = [ "esp32c3" ]}
 pc-keyboard = "0.5.1"
-const_queue = "0.1.1"
 
 [features]
 default = ["rt"]

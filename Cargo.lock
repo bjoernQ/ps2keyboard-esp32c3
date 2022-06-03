@@ -36,12 +36,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
-name = "const_queue"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e315f29565cbe77a0f7b4eacc27d4dddc5f113a0df7809a111354e4e956748e9"
-
-[[package]]
 name = "darling"
 version = "0.14.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -269,7 +263,6 @@ dependencies = [
 name = "ps2keyboard"
 version = "0.1.0"
 dependencies = [
- "const_queue",
  "esp-hal-common",
  "esp-println",
  "esp32c3-hal",
