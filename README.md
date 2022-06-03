@@ -2,6 +2,8 @@
 
 Very simplified example of connecting a PS/2 keyboard to ESP32-C3
 
+You need to build it with the release profile (i.e. `cargo run --release`) since otherwise the interrupt latency is too slow.
+
 ![Screenshot](docs/screenshot.png "Screenshot")
 
 ## Circuit

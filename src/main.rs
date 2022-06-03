@@ -3,7 +3,7 @@
 
 use core::cell::RefCell;
 
-use const_queue::ConstQueue;
+use core::mem::MaybeUninit;
 use esp32c3_hal::{
     gpio::{Gpio7, Gpio8},
     pac::Peripherals,
@@ -94,16 +94,16 @@ fn main() -> ! {
     }
 }
 
-static mut QUEUE: Option<ConstQueue<u8, 5>> = None;
+static mut QUEUE: Option<SimpleQueue<u8, 5>> = None;
 
 fn send_byte(byte: u8) {
     riscv::interrupt::free(|_| unsafe {
         if QUEUE.is_none() {
-            QUEUE = Some(ConstQueue::new());
+            QUEUE = Some(SimpleQueue::new());
         }
         match QUEUE {
             Some(ref mut queue) => {
-                queue.push(byte).ok();
+                queue.enqueue(byte);
             }
             None => (),
         }
@@ -113,7 +113,7 @@ fn send_byte(byte: u8) {
 fn get_byte() -> Option<u8> {
     riscv::interrupt::free(|_| unsafe {
         match QUEUE {
-            Some(ref mut queue) => queue.pop().ok(),
+            Some(ref mut queue) => queue.dequeue(),
             None => None,
         }
     })
@@ -149,4 +149,63 @@ pub fn interrupt3() {
             CURRENT = 0;
         }
     });
+}
+
+pub struct SimpleQueue<T, const N: usize> {
+    data: [Option<T>; N],
+    read_index: usize,
+    write_index: usize,
+}
+
+impl<T, const N: usize> SimpleQueue<T, N> {
+    pub fn new() -> SimpleQueue<T, N> {
+        let mut queue = unsafe {
+            SimpleQueue {
+                data: MaybeUninit::uninit().assume_init(),
+                read_index: 0,
+                write_index: 0,
+            }
+        };
+
+        for i in 0..N {
+            queue.data[i] = None;
+        }
+
+        queue
+    }
+
+    pub fn enqueue(&mut self, e: T) -> bool {
+        self.data[self.write_index] = Some(e);
+
+        self.write_index += 1;
+        self.write_index %= N;
+
+        if self.write_index == self.read_index {
+            return false;
+        }
+
+        true
+    }
+
+    pub fn dequeue(&mut self) -> Option<T> {
+        if self.write_index == self.read_index {
+            None
+        } else {
+            let result = self.data[self.read_index].take();
+            self.read_index += 1;
+            self.read_index %= N;
+            result
+        }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.read_index == self.write_index
+    }
+
+    pub fn is_full(&self) -> bool {
+        let mut next_write = self.read_index + 1;
+        next_write %= N;
+
+        next_write == self.read_index
+    }
 }
