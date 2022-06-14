@@ -56,7 +56,7 @@ dependencies = [
  "proc-macro2 1.0.39",
  "quote 1.0.18",
  "strsim",
- "syn 1.0.95",
+ "syn 1.0.96",
 ]
 
 [[package]]
@@ -67,7 +67,7 @@ checksum = "ddfc69c5bfcbd2fc09a0f38451d2daf0e372e367986a83906d1b0dbc88134fb5"
 dependencies = [
  "darling_core",
  "quote 1.0.18",
- "syn 1.0.95",
+ "syn 1.0.96",
 ]
 
 [[package]]
@@ -81,12 +81,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "embedded-hal"
+version = "1.0.0-alpha.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c3babfc7fd332142a0b11aebf592992f211f4e01b6222fb04b03aba1bd80018d"
+dependencies = [
+ "nb 1.0.0",
+]
+
+[[package]]
 name = "esp-hal-common"
 version = "0.1.0"
-source = "git+https://github.com/esp-rs/esp-hal.git#a96ac9a53abb0d63e521584270e1885687d13f2b"
+source = "git+https://github.com/esp-rs/esp-hal.git#2417cd0b33848c191c6ca04958bc4f70b6f65f37"
 dependencies = [
  "cfg-if",
- "embedded-hal",
+ "embedded-hal 0.2.7",
+ "embedded-hal 1.0.0-alpha.8",
  "esp-hal-procmacros",
  "esp32c3",
  "fugit",
@@ -101,24 +111,24 @@ dependencies = [
 [[package]]
 name = "esp-hal-procmacros"
 version = "0.1.0"
-source = "git+https://github.com/esp-rs/esp-hal.git#a96ac9a53abb0d63e521584270e1885687d13f2b"
+source = "git+https://github.com/esp-rs/esp-hal.git#2417cd0b33848c191c6ca04958bc4f70b6f65f37"
 dependencies = [
  "darling",
  "proc-macro-error",
  "proc-macro2 1.0.39",
  "quote 1.0.18",
- "syn 1.0.95",
+ "syn 1.0.96",
 ]
 
 [[package]]
 name = "esp-println"
 version = "0.1.0"
-source = "git+https://github.com/esp-rs/esp-println#2d851f33e8677040e442f11bcf95e09e4083c13c"
+source = "git+https://github.com/esp-rs/esp-println#b61e72b6d800747ce04ca2837d37541b3651f469"
 
 [[package]]
 name = "esp32c3"
 version = "0.4.0"
-source = "git+https://github.com/esp-rs/esp-pacs.git?branch=with_source#4fd3e907cd829797ab9fadc6810e69641673325d"
+source = "git+https://github.com/esp-rs/esp-pacs.git?branch=with_source#06f316aa183b4324ce6f11ef7de822aab02ab476"
 dependencies = [
  "bare-metal",
  "riscv 0.8.0",
@@ -129,10 +139,11 @@ dependencies = [
 [[package]]
 name = "esp32c3-hal"
 version = "0.1.0"
-source = "git+https://github.com/esp-rs/esp-hal.git#a96ac9a53abb0d63e521584270e1885687d13f2b"
+source = "git+https://github.com/esp-rs/esp-hal.git#2417cd0b33848c191c6ca04958bc4f70b6f65f37"
 dependencies = [
  "bare-metal",
- "embedded-hal",
+ "embedded-hal 0.2.7",
+ "embedded-hal 1.0.0-alpha.8",
  "esp-hal-common",
  "fugit",
  "nb 1.0.0",
@@ -226,7 +237,7 @@ dependencies = [
  "proc-macro-error-attr",
  "proc-macro2 1.0.39",
  "quote 1.0.18",
- "syn 1.0.95",
+ "syn 1.0.96",
  "version_check",
 ]
 
@@ -263,7 +274,6 @@ dependencies = [
 name = "ps2keyboard"
 version = "0.1.0"
 dependencies = [
- "esp-hal-common",
  "esp-println",
  "esp32c3-hal",
  "panic-halt",
@@ -365,7 +375,7 @@ checksum = "5e2856a701069e2d262b264750d382407d272d5527f7a51d3777d1805b4e2d3c"
 dependencies = [
  "bare-metal",
  "bit_field",
- "embedded-hal",
+ "embedded-hal 0.2.7",
 ]
 
 [[package]]
@@ -441,9 +451,9 @@ dependencies = [
 
 [[package]]
 name = "syn"
-version = "1.0.95"
+version = "1.0.96"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fbaf6116ab8924f39d52792136fb74fd60a80194cf1b1c6ffa6453eef1c3f942"
+checksum = "0748dd251e24453cb8717f0354206b91557e4ec8703673a4b30208f2abaf1ebf"
 dependencies = [
  "proc-macro2 1.0.39",
  "quote 1.0.18",

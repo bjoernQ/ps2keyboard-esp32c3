@@ -19,10 +19,10 @@ You need to build it with the release profile (i.e. `cargo run --release`) since
     GND     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  GND
 
                                         ┏━━━━━┓
-    DATA    ━━━━━━━━━━━━━━━━━━━━━┳━━━━━━┫ 120 ┣━┳━  IO1
-                                 ┃      ┗━━━━━┛ ┃
-                                ┏┻┓             ┃
-                                ┃2┃             ┗━  IO8
+    DATA    ━━━━━━━━━━━━━━━━━━━━━┳━━━━━━┫ 120 ┣━━━  IO1
+                                 ┃      ┗━━━━━┛ 
+                                ┏┻┓ 
+                                ┃2┃ 
                                 ┃.┃
                                 ┃2┃
                                 ┃k┃
@@ -37,10 +37,9 @@ You need to build it with the release profile (i.e. `cargo run --release`) since
                                 ┃k┃
                                 ┗┳┛
                                  ┃      ┏━━━━━┓
-    CLK     ━━━━━━━━━━━━━━━━━━━━━┻━━━━━━┫ 120 ┣━┳━  IO2
-                                        ┗━━━━━┛ ┃
-                                                ┃
-                                                ┗━  IO7
+    CLK     ━━━━━━━━━━━━━━━━━━━━━┻━━━━━━┫ 120 ┣━━━  IO2
+                                        ┗━━━━━┛                                                
+
 ```
 
 

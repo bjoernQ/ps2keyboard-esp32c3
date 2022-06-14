@@ -7,7 +7,6 @@ license = "MIT OR Apache-2.0"
 
 [dependencies]
 esp32c3-hal = { package = "esp32c3-hal", git = "https://github.com/esp-rs/esp-hal.git" }
-esp-hal-common = { package = "esp-hal-common", git = "https://github.com/esp-rs/esp-hal.git" }
 panic-halt = "0.2"
 riscv-rt = { version = "0.8", optional = true }
 riscv = "0.8.0"

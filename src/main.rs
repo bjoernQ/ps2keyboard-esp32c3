@@ -5,20 +5,21 @@ use core::cell::RefCell;
 
 use core::mem::MaybeUninit;
 use esp32c3_hal::{
-    gpio::{Gpio7, Gpio8},
-    pac::Peripherals,
+    gpio::{Gpio1, Gpio2},
+    gpio_types::{Event, OpenDrain, Output, Pin},
+    interrupt,
+    pac::{self, Peripherals},
     prelude::*,
-    RtcCntl, Timer, IO,
+    Cpu, RtcCntl, Timer, IO,
 };
-use esp_hal_common::{interrupt, pac, Cpu, Event, Floating, Input, Pin};
 use esp_println::println;
 use panic_halt as _;
 use pc_keyboard::{layouts, HandleControl, ScancodeSet2};
 use riscv::interrupt::Mutex;
 use riscv_rt::entry;
 
-static mut CLK: Mutex<RefCell<Option<Gpio7<Input<Floating>>>>> = Mutex::new(RefCell::new(None));
-static mut DATA: Mutex<RefCell<Option<Gpio8<Input<Floating>>>>> = Mutex::new(RefCell::new(None));
+static mut CLK: Mutex<RefCell<Option<Gpio2<Output<OpenDrain>>>>> = Mutex::new(RefCell::new(None));
+static mut DATA: Mutex<RefCell<Option<Gpio1<Output<OpenDrain>>>>> = Mutex::new(RefCell::new(None));
 
 #[entry]
 fn main() -> ! {
@@ -36,22 +37,20 @@ fn main() -> ! {
     timer1.disable();
 
     let io = IO::new(peripherals.GPIO, peripherals.IO_MUX);
-    let mut data_out = io.pins.gpio1.into_open_drain_output();
-    let mut clk_out = io.pins.gpio2.into_open_drain_output();
+    let mut data = io.pins.gpio1.into_open_drain_output();
+    let mut clk = io.pins.gpio2.into_open_drain_output();
 
-    let data_in = io.pins.gpio8.into_floating_input();
-    let mut clk_in = io.pins.gpio7.into_floating_input();
-    clk_in.listen(Event::FallingEdge);
+    clk.listen(Event::FallingEdge);
 
-    data_out.set_low().unwrap();
-    clk_out.set_low().unwrap();
+    data.set_low().unwrap();
+    clk.set_low().unwrap();
 
-    data_out.set_high().unwrap();
-    clk_out.set_high().unwrap();
+    data.set_high().unwrap();
+    clk.set_high().unwrap();
 
     riscv::interrupt::free(|_cs| unsafe {
-        CLK.get_mut().replace(Some(clk_in));
-        DATA.get_mut().replace(Some(data_in));
+        CLK.get_mut().replace(Some(clk));
+        DATA.get_mut().replace(Some(data));
     });
 
     interrupt::enable(
