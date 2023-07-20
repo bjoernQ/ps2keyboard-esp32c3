@@ -4,37 +4,43 @@
 use core::cell::RefCell;
 
 use core::mem::MaybeUninit;
+use critical_section::Mutex;
 use esp32c3_hal::{
-    gpio::{Gpio1, Gpio2},
-    gpio_types::{Event, OpenDrain, Output, Pin},
+    clock::ClockControl,
+    gpio::{Event, Gpio1, Gpio2, OpenDrain, Output},
     interrupt,
-    pac::{self, Peripherals},
+    peripherals::{self, Peripherals},
     prelude::*,
-    Cpu, RtcCntl, Timer, IO,
+    timer::TimerGroup,
+    Cpu, Rtc, IO,
 };
+use esp_backtrace as _;
 use esp_println::println;
-use panic_halt as _;
 use pc_keyboard::{layouts, HandleControl, ScancodeSet2};
-use riscv::interrupt::Mutex;
-use riscv_rt::entry;
 
-static mut CLK: Mutex<RefCell<Option<Gpio2<Output<OpenDrain>>>>> = Mutex::new(RefCell::new(None));
-static mut DATA: Mutex<RefCell<Option<Gpio1<Output<OpenDrain>>>>> = Mutex::new(RefCell::new(None));
+static CLK: Mutex<RefCell<Option<Gpio2<Output<OpenDrain>>>>> = Mutex::new(RefCell::new(None));
+static DATA: Mutex<RefCell<Option<Gpio1<Output<OpenDrain>>>>> = Mutex::new(RefCell::new(None));
+static QUEUE: Mutex<RefCell<Option<SimpleQueue<u8, 5>>>> = Mutex::new(RefCell::new(None));
 
 #[entry]
 fn main() -> ! {
-    let peripherals = Peripherals::take().unwrap();
+    let peripherals = Peripherals::take();
+    let system = peripherals.SYSTEM.split();
+    let clocks = ClockControl::boot_defaults(system.clock_control).freeze();
+    let mut peripheral_clock_control = system.peripheral_clock_control;
 
     // Disable the watchdog timers. For the ESP32-C3, this includes the Super WDT,
     // the RTC WDT, and the TIMG WDTs.
-    let mut rtc_cntl = RtcCntl::new(peripherals.RTC_CNTL);
-    let mut timer0 = Timer::new(peripherals.TIMG0);
-    let mut timer1 = Timer::new(peripherals.TIMG1);
+    let mut rtc = Rtc::new(peripherals.RTC_CNTL);
+    let timer_group0 = TimerGroup::new(peripherals.TIMG0, &clocks, &mut peripheral_clock_control);
+    let mut wdt0 = timer_group0.wdt;
+    let timer_group1 = TimerGroup::new(peripherals.TIMG1, &clocks, &mut peripheral_clock_control);
+    let mut wdt1 = timer_group1.wdt;
 
-    rtc_cntl.set_super_wdt_enable(false);
-    rtc_cntl.set_wdt_enable(false);
-    timer0.disable();
-    timer1.disable();
+    rtc.swd.disable();
+    rtc.rwdt.disable();
+    wdt0.disable();
+    wdt1.disable();
 
     let io = IO::new(peripherals.GPIO, peripherals.IO_MUX);
     let mut data = io.pins.gpio1.into_open_drain_output();
@@ -48,34 +54,20 @@ fn main() -> ! {
     data.set_high().unwrap();
     clk.set_high().unwrap();
 
-    riscv::interrupt::free(|_cs| unsafe {
-        CLK.get_mut().replace(Some(clk));
-        DATA.get_mut().replace(Some(data));
+    critical_section::with(|cs| {
+        CLK.borrow_ref_mut(cs).replace(clk);
+        DATA.borrow_ref_mut(cs).replace(data);
     });
 
-    interrupt::enable(
-        Cpu::ProCpu,
-        pac::Interrupt::GPIO,
-        interrupt::CpuInterrupt::Interrupt3,
-    );
-    interrupt::set_kind(
-        Cpu::ProCpu,
-        interrupt::CpuInterrupt::Interrupt3,
-        interrupt::InterruptKind::Level,
-    );
-    interrupt::set_priority(
-        Cpu::ProCpu,
-        interrupt::CpuInterrupt::Interrupt3,
-        interrupt::Priority::Priority1,
-    );
+    interrupt::enable(peripherals::Interrupt::GPIO, interrupt::Priority::Priority3).unwrap();
 
     unsafe {
-        riscv::interrupt::enable();
+        esp32c3_hal::riscv::interrupt::enable();
     }
 
     let mut kb = pc_keyboard::Keyboard::new(
+        ScancodeSet2::new(),
         layouts::Us104Key,
-        ScancodeSet2,
         HandleControl::MapLettersToUnicode,
     );
     loop {
@@ -93,41 +85,35 @@ fn main() -> ! {
     }
 }
 
-static mut QUEUE: Option<SimpleQueue<u8, 5>> = None;
-
 fn send_byte(byte: u8) {
-    riscv::interrupt::free(|_| unsafe {
-        if QUEUE.is_none() {
-            QUEUE = Some(SimpleQueue::new());
+    critical_section::with(|cs| {
+        let mut queue = QUEUE.borrow_ref_mut(cs);
+
+        if queue.is_none() {
+            queue.replace(SimpleQueue::new());
         }
-        match QUEUE {
-            Some(ref mut queue) => {
-                queue.enqueue(byte);
-            }
-            None => (),
-        }
+
+        queue.as_mut().unwrap().enqueue(byte);
     });
 }
 
 fn get_byte() -> Option<u8> {
-    riscv::interrupt::free(|_| unsafe {
-        match QUEUE {
-            Some(ref mut queue) => queue.dequeue(),
-            None => None,
-        }
+    critical_section::with(|cs| match *QUEUE.borrow_ref_mut(cs) {
+        Some(ref mut queue) => queue.dequeue(),
+        None => None,
     })
 }
 
-#[no_mangle]
-pub fn interrupt3() {
+#[interrupt]
+fn GPIO() {
     static mut BIT_COUNT: usize = 0;
     static mut CURRENT: u8 = 0;
 
-    riscv::interrupt::free(|cs| unsafe {
-        let mut clk = CLK.borrow(*cs).borrow_mut();
+    critical_section::with(|cs| unsafe {
+        let mut clk = CLK.borrow_ref_mut(cs);
         let clk = clk.as_mut().unwrap();
 
-        let mut data = DATA.borrow(*cs).borrow_mut();
+        let mut data = DATA.borrow_ref_mut(cs);
         let data = data.as_mut().unwrap();
 
         let bit = if data.is_high().unwrap() { 1 } else { 0 };
