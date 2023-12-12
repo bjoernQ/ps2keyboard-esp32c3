@@ -9,3 +9,7 @@ target = "riscv32imac-unknown-none-elf"
 
 [unstable]
 build-std = ["core"]
+
+[env]
+# Use clean build after changing ESP_LOGLEVEL
+ESP_LOGLEVEL="DEBUG"

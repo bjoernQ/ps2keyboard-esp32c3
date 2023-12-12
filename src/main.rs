@@ -13,8 +13,8 @@ use esp32c3_hal::{
     Cpu, IO,
 };
 use esp_backtrace as _;
-use esp_println::println;
 use pc_keyboard::{layouts, HandleControl, ScancodeSet2};
+use log::{info, error};
 
 static CLK: Mutex<RefCell<Option<Gpio2<Output<OpenDrain>>>>> = Mutex::new(RefCell::new(None));
 static DATA: Mutex<RefCell<Option<Gpio1<Output<OpenDrain>>>>> = Mutex::new(RefCell::new(None));
@@ -27,6 +27,10 @@ fn main() -> ! {
     let io = IO::new(peripherals.GPIO, peripherals.IO_MUX);
     let mut data = io.pins.gpio1.into_open_drain_output();
     let mut clk = io.pins.gpio2.into_open_drain_output();
+
+    esp_println::logger::init_logger_from_env();
+
+    info!("Starting");
 
     clk.listen(Event::FallingEdge);
 
@@ -56,11 +60,11 @@ fn main() -> ! {
         if let Some(byte) = get_byte() {
             match kb.add_byte(byte) {
                 Ok(Some(event)) => {
-                    println!("Event {:?}", event);
+                    info!("Event {:?}", event);
                 }
                 Ok(None) => (),
                 Err(e) => {
-                    println!("Error decoding: {:?}", e);
+                    error!("Error decoding: {:?}", e);
                 }
             }
         }
