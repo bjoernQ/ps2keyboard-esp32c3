@@ -5,15 +5,21 @@ use core::cell::RefCell;
 
 use core::mem::MaybeUninit;
 use critical_section::Mutex;
-use esp32c3_hal::{
+use hal::{
+    clock::{ClockControl, CpuClock},
     gpio::{Event, Gpio1, Gpio2, OpenDrain, Output},
     interrupt,
     peripherals::{self, Peripherals},
     prelude::*,
     Cpu, IO,
+    uart::{
+        config::{Config, DataBits, Parity, StopBits},
+        TxRxPins,
+    },
+    Uart
 };
 use esp_backtrace as _;
-use pc_keyboard::{layouts, HandleControl, ScancodeSet2};
+use pc_keyboard::{layouts, HandleControl, ScancodeSet2, KeyEvent};
 use log::{info, error};
 
 static CLK: Mutex<RefCell<Option<Gpio2<Output<OpenDrain>>>>> = Mutex::new(RefCell::new(None));
@@ -23,6 +29,9 @@ static QUEUE: Mutex<RefCell<Option<SimpleQueue<u8, 5>>>> = Mutex::new(RefCell::n
 #[entry]
 fn main() -> ! {
     let peripherals = Peripherals::take();
+    let system = peripherals.SYSTEM.split();
+    let clocks = ClockControl::boot_defaults(system.clock_control).freeze();
+    // let clocks = ClockControl::configure(system.clock_control, CpuClock::Clock80MHz).freeze();
 
     let io = IO::new(peripherals.GPIO, peripherals.IO_MUX);
     let mut data = io.pins.gpio1.into_open_drain_output();
@@ -31,6 +40,25 @@ fn main() -> ! {
     esp_println::logger::init_logger_from_env();
 
     info!("Starting");
+
+    let serial_tx = io.pins.gpio5.into_push_pull_output();
+    let serial_rx = io.pins.gpio4.into_floating_input();
+
+    let pins = TxRxPins::new_tx_rx(
+        serial_tx,
+        serial_rx,
+    );
+
+    let config = Config {
+        baudrate: 115200,
+        data_bits: DataBits::DataBits8,
+        parity: Parity::ParityNone,
+        stop_bits: StopBits::STOP1,
+    };
+
+    let mut serial = Uart::new_with_config(peripherals.UART1, config, Some(pins), &clocks);
+    // serial.write("Hello, world!\n").unwrap();
+    serial.write(0x0A).unwrap();
 
     clk.listen(Event::FallingEdge);
 
@@ -48,7 +76,7 @@ fn main() -> ! {
     interrupt::enable(peripherals::Interrupt::GPIO, interrupt::Priority::Priority3).unwrap();
 
     unsafe {
-        esp32c3_hal::riscv::interrupt::enable();
+        hal::riscv::interrupt::enable();
     }
 
     let mut kb = pc_keyboard::Keyboard::new(
@@ -60,7 +88,17 @@ fn main() -> ! {
         if let Some(byte) = get_byte() {
             match kb.add_byte(byte) {
                 Ok(Some(event)) => {
-                    info!("Event {:?}", event);
+                    info!("Event {:?}, Byte: {}", event, byte);
+
+
+                    match event.state {
+                        pc_keyboard::KeyState::Up => {
+                            serial.write(byte).unwrap();
+                        },
+                        pc_keyboard::KeyState::Down => {},
+                        pc_keyboard::KeyState::SingleShot => {},
+                    }
+
                 }
                 Ok(None) => (),
                 Err(e) => {
