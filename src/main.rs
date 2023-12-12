@@ -69,7 +69,6 @@ fn map_keycode(keycode: KeyCode) -> Option<char> {
         // KeyCode::Semicolon => Some(';'),
         // KeyCode::Quote => Some('*'),
         // KeyCode::Comma => Some('('),
-        KeyCode::OemPeriod => Some('.'),
         // KeyCode::Slash => Some('_'),
         KeyCode::Spacebar => Some(' '),
         KeyCode::Key1 => Some('1'),
@@ -227,25 +226,39 @@ fn main() -> ! {
         layouts::Us104Key,
         HandleControl::MapLettersToUnicode,
     );
+
+    // let encode_config = bincode::config::standard();
     loop {
         if let Some(byte) = get_byte() {
             match kb.add_byte(byte) {
                 Ok(Some(event)) => {
-                    info!("Event {:?}, Byte: {}", event, byte);
+                    // let data = bincode::encode_into_slice(&event, encode_config).unwrap();
+                    // serial.write(&data).unwrap();
+                    // info!("Event {:?}, Byte: {}", event, byte);
 
 
                     match event.state {
                         pc_keyboard::KeyState::Up => {
                             match map_keycode(event.code) {
                                 Some(keycode_event) => {
-                                    info!("Sending: {}", keycode_event);
+                                    info!("Sending: Up {}", keycode_event);
+                                    serial.write(b'1').unwrap();
+                                    serial.write(keycode_event as u8).unwrap();
+                                },
+                                None => {}
+                            }
+                        },
+                        pc_keyboard::KeyState::Down => {
+                            match map_keycode(event.code) {
+                                Some(keycode_event) => {
+                                    info!("Sending: Down {}", keycode_event);
+                                    serial.write(b'0').unwrap();
                                     serial.write(keycode_event as u8).unwrap();
                                 },
                                 None => {}
                             }
                         }
-                        ,
-                        pc_keyboard::KeyState::Down => {},
+,
                         pc_keyboard::KeyState::SingleShot => {},
                     }
 
