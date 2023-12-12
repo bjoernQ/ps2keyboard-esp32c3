@@ -58,7 +58,7 @@ fn map_keycode(keycode: KeyCode) -> Option<char> {
         KeyCode::PrintScreen => Some(']'),
         KeyCode::PauseBreak => Some('\\'),
         KeyCode::CapsLock => Some('`'),
-        // KeyCode::NumLock => Some('~'),
+        KeyCode::LAlt => Some('~'),
         KeyCode::ScrollLock => Some('!'),
         // KeyCode::BackTick => Some('@'),
         // KeyCode::Minus => Some('#'),
@@ -139,7 +139,6 @@ fn map_keycode(keycode: KeyCode) -> Option<char> {
         KeyCode::NumpadEnter => Some('\n'),
         KeyCode::LControl => None,
         KeyCode::LWin => None,
-        KeyCode::LAlt => None,
         KeyCode::RAltGr => None,
         KeyCode::RWin => None,
         KeyCode::Apps => None,
@@ -230,44 +229,60 @@ fn main() -> ! {
     // let encode_config = bincode::config::standard();
     loop {
         if let Some(byte) = get_byte() {
-            match kb.add_byte(byte) {
-                Ok(Some(event)) => {
-                    // let data = bincode::encode_into_slice(&event, encode_config).unwrap();
-                    // serial.write(&data).unwrap();
-                    // info!("Event {:?}, Byte: {}", event, byte);
+            info!("Sending byte: {}", byte);
+            serial.write(byte).unwrap();
+//             match kb.add_byte(byte) {
+//                 Ok(Some(event)) => {
+//                     // let data = bincode::encode_into_slice(&event, encode_config).unwrap();
+//                     // serial.write(&data).unwrap();
+//                     info!("Event {:?}", event);
 
+//                     match event.state {
+//                         pc_keyboard::KeyState::Up => {
+//                             serial.write(b'0').unwrap();
+//                         },
+//                         pc_keyboard::KeyState::Down => {
+//                             serial.write(b'1').unwrap();
+//                         },
+//                         pc_keyboard::KeyState::SingleShot => {
+//                             serial.write(b'1').unwrap();
+//                         },
 
-                    match event.state {
-                        pc_keyboard::KeyState::Up => {
-                            match map_keycode(event.code) {
-                                Some(keycode_event) => {
-                                    info!("Sending: Up {}", keycode_event);
-                                    serial.write(b'1').unwrap();
-                                    serial.write(keycode_event as u8).unwrap();
-                                },
-                                None => {}
-                            }
-                        },
-                        pc_keyboard::KeyState::Down => {
-                            match map_keycode(event.code) {
-                                Some(keycode_event) => {
-                                    info!("Sending: Down {}", keycode_event);
-                                    serial.write(b'0').unwrap();
-                                    serial.write(keycode_event as u8).unwrap();
-                                },
-                                None => {}
-                            }
-                        }
-,
-                        pc_keyboard::KeyState::SingleShot => {},
-                    }
+//                     }
 
-                }
-                Ok(None) => (),
-                Err(e) => {
-                    error!("Error decoding: {:?}", e);
-                }
-            }
+//                     serial.write(event.code).unwrap();
+
+//                     match event.state {
+//                         pc_keyboard::KeyState::Up => {
+//                             match map_keycode(event.code) {
+//                                 Some(keycode_event) => {
+//                                     info!("Sending: Up {}", keycode_event);
+//                                     serial.write(b'1').unwrap();
+//                                     serial.write(keycode_event as u8).unwrap();
+//                                 },
+//                                 None => {}
+//                             }
+//                         },
+//                         pc_keyboard::KeyState::Down => {
+//                             match map_keycode(event.code) {
+//                                 Some(keycode_event) => {
+//                                     info!("Sending: Down {}", keycode_event);
+//                                     serial.write(b'0').unwrap();
+//                                     serial.write(keycode_event as u8).unwrap();
+//                                 },
+//                                 None => {}
+//                             }
+//                         }
+// ,
+//                         pc_keyboard::KeyState::SingleShot => {},
+//                     }
+
+//                 }
+//                 Ok(None) => (),
+//                 Err(e) => {
+//                     error!("Error decoding: {:?}", e);
+//                 }
+//             }
         }
     }
 }
