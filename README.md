@@ -43,4 +43,8 @@ You need to build it with the release profile (i.e. `cargo run --release`) since
 ```
 
 
+## USB
+
+It's possible to connect USB keyboard to the, just us following wiring:
+https://www.instructables.com/USB-to-PS2-convertor/
 
