@@ -6,7 +6,7 @@ use core::cell::RefCell;
 use core::mem::MaybeUninit;
 use critical_section::Mutex;
 use hal::{
-    clock::{ClockControl, CpuClock},
+    clock::ClockControl,
     gpio::{Event, Gpio1, Gpio2, OpenDrain, Output},
     interrupt,
     peripherals::{self, Peripherals},
@@ -19,160 +19,17 @@ use hal::{
     Uart
 };
 use esp_backtrace as _;
-use pc_keyboard::{layouts, HandleControl, ScancodeSet2, KeyEvent, KeyCode};
 use log::{info, error};
 
 static CLK: Mutex<RefCell<Option<Gpio2<Output<OpenDrain>>>>> = Mutex::new(RefCell::new(None));
 static DATA: Mutex<RefCell<Option<Gpio1<Output<OpenDrain>>>>> = Mutex::new(RefCell::new(None));
 static QUEUE: Mutex<RefCell<Option<SimpleQueue<u8, 5>>>> = Mutex::new(RefCell::new(None));
 
-// Maps keycodes to ASCII characters
-fn map_keycode(keycode: KeyCode) -> Option<char> {
-    match keycode {
-        KeyCode::ArrowUp => Some('7'),
-        KeyCode::ArrowDown => Some('6'),
-        KeyCode::ArrowRight => Some('8'),
-        KeyCode::ArrowLeft => Some('5'),
-        KeyCode::Backspace => Some('\x08'),
-        KeyCode::Tab => Some('\t'),
-        KeyCode::Return => Some('\n'),
-        KeyCode::Escape => Some('\x1B'),
-        KeyCode::Home => Some('H'),
-        KeyCode::End => Some('F'),
-        KeyCode::PageUp => Some('I'),
-        KeyCode::PageDown => Some('G'),
-        KeyCode::Insert => Some('L'),
-        KeyCode::Delete => Some('M'),
-        KeyCode::F1 => Some('P'),
-        KeyCode::F2 => Some('Q'),
-        KeyCode::F3 => Some('R'),
-        KeyCode::F4 => Some('S'),
-        KeyCode::F5 => Some('T'),
-        KeyCode::F6 => Some('U'),
-        KeyCode::F7 => Some('V'),
-        KeyCode::F8 => Some('W'),
-        KeyCode::F9 => Some('X'),
-        KeyCode::F10 => Some('Y'),
-        KeyCode::F11 => Some('Z'),
-        KeyCode::F12 => Some('['),
-        KeyCode::PrintScreen => Some(']'),
-        KeyCode::PauseBreak => Some('\\'),
-        KeyCode::CapsLock => Some('`'),
-        KeyCode::LAlt => Some('~'),
-        KeyCode::ScrollLock => Some('!'),
-        // KeyCode::BackTick => Some('@'),
-        // KeyCode::Minus => Some('#'),
-        // KeyCode::Equal => Some('$'),
-        // KeyCode::LeftSquareBracket => Some('%'),
-        // KeyCode::RightSquareBracket => Some('^'),
-        // KeyCode::BackSlash => Some('&'),
-        // KeyCode::Semicolon => Some(';'),
-        // KeyCode::Quote => Some('*'),
-        // KeyCode::Comma => Some('('),
-        // KeyCode::Slash => Some('_'),
-        KeyCode::Spacebar => Some(' '),
-        KeyCode::Key1 => Some('1'),
-        KeyCode::Key2 => Some('2'),
-        KeyCode::Key3 => Some('3'),
-        KeyCode::Key4 => Some('4'),
-        KeyCode::Key5 => Some('5'),
-        KeyCode::Key6 => Some('6'),
-        KeyCode::Key7 => Some('7'),
-        KeyCode::Key8 => Some('8'),
-        KeyCode::Key9 => Some('9'),
-        KeyCode::Key0 => Some('0'),
-        KeyCode::A => Some('a'),
-        KeyCode::B => Some('b'),
-        KeyCode::C => Some('c'),
-        KeyCode::D => Some('d'),
-        KeyCode::E => Some('e'),
-        KeyCode::F => Some('f'),
-        KeyCode::SysRq => None,
-        KeyCode::Oem8 => None,
-        KeyCode::OemMinus => None,
-        KeyCode::OemPlus => None,
-        KeyCode::NumpadLock => None,
-        KeyCode::NumpadDivide => None,
-        KeyCode::NumpadMultiply => None,
-        KeyCode::NumpadSubtract => None,
-        KeyCode::Q => Some('q'),
-        KeyCode::W => Some('w'),
-        KeyCode::R => Some('r'),
-        KeyCode::T => Some('s'),
-        KeyCode::Y => Some('t'),
-        KeyCode::U => Some('y'),
-        KeyCode::I => Some('i'),
-        KeyCode::O => Some('o'),
-        KeyCode::P => Some('p'),
-        KeyCode::Oem4 => None,
-        KeyCode::Oem6 => None,
-        KeyCode::Oem5 => None,
-        KeyCode::Oem7 => None,
-        KeyCode::Numpad7 => Some('7'),
-        KeyCode::Numpad8 => Some('8'),
-        KeyCode::Numpad9 => Some('9'),
-        KeyCode::NumpadAdd => Some('+'),
-        KeyCode::S => Some('s'),
-        KeyCode::G => Some('g'),
-        KeyCode::H => Some('h'),
-        KeyCode::J => Some('j'),
-        KeyCode::K => Some('k'),
-        KeyCode::L => Some('l'),
-        KeyCode::Oem1 => None,
-        KeyCode::Oem3 => None,
-        KeyCode::Numpad4 => Some('4'),
-        KeyCode::Numpad5 => Some('5'),
-        KeyCode::Numpad6 => Some('6'),
-        KeyCode::LShift => None,
-        KeyCode::Z => Some('z'),
-        KeyCode::X => Some('x'),
-        KeyCode::V => Some('v'),
-        KeyCode::N => Some('n'),
-        KeyCode::M => Some('m'),
-        KeyCode::OemComma => Some(','),
-        KeyCode::OemPeriod => Some('.'),
-        KeyCode::Oem2 => None,
-        KeyCode::RShift => None,
-        KeyCode::Numpad1 => Some('1'),
-        KeyCode::Numpad2 => Some('2'),
-        KeyCode::Numpad3 => Some('3'),
-        KeyCode::NumpadEnter => Some('\n'),
-        KeyCode::LControl => None,
-        KeyCode::LWin => None,
-        KeyCode::RAltGr => None,
-        KeyCode::RWin => None,
-        KeyCode::Apps => None,
-        KeyCode::RControl => None,
-        KeyCode::Numpad0 => None,
-        KeyCode::NumpadPeriod => None,
-        KeyCode::Oem9 => None,
-        KeyCode::Oem10 => None,
-        KeyCode::Oem11 => None,
-        KeyCode::Oem12 => None,
-        KeyCode::Oem13 => None,
-        KeyCode::PrevTrack => None,
-        KeyCode::NextTrack => None,
-        KeyCode::Mute => None,
-        KeyCode::Calculator => None,
-        KeyCode::Play => None,
-        KeyCode::Stop => None,
-        KeyCode::VolumeDown => None,
-        KeyCode::VolumeUp => None,
-        KeyCode::WWWHome => None,
-        KeyCode::PowerOnTestOk => None,
-        KeyCode::TooManyKeys => None,
-        KeyCode::RControl2 => None,
-        KeyCode::RAlt2 => None,
-    }
-}
-
-
 #[entry]
 fn main() -> ! {
     let peripherals = Peripherals::take();
     let system = peripherals.SYSTEM.split();
     let clocks = ClockControl::boot_defaults(system.clock_control).freeze();
-    // let clocks = ClockControl::configure(system.clock_control, CpuClock::Clock80MHz).freeze();
 
     let io = IO::new(peripherals.GPIO, peripherals.IO_MUX);
     let mut data = io.pins.gpio1.into_open_drain_output();
@@ -198,8 +55,6 @@ fn main() -> ! {
     };
 
     let mut serial = Uart::new_with_config(peripherals.UART1, config, Some(pins), &clocks);
-    // serial.write("Hello, world!\n").unwrap();
-    serial.write(0x0A).unwrap();
 
     clk.listen(Event::FallingEdge);
 
@@ -220,69 +75,12 @@ fn main() -> ! {
         hal::riscv::interrupt::enable();
     }
 
-    let mut kb = pc_keyboard::Keyboard::new(
-        ScancodeSet2::new(),
-        layouts::Us104Key,
-        HandleControl::MapLettersToUnicode,
-    );
-
-    // let encode_config = bincode::config::standard();
     loop {
         if let Some(byte) = get_byte() {
-            info!("Sending byte: {}", byte);
-            serial.write(byte).unwrap();
-//             match kb.add_byte(byte) {
-//                 Ok(Some(event)) => {
-//                     // let data = bincode::encode_into_slice(&event, encode_config).unwrap();
-//                     // serial.write(&data).unwrap();
-//                     info!("Event {:?}", event);
-
-//                     match event.state {
-//                         pc_keyboard::KeyState::Up => {
-//                             serial.write(b'0').unwrap();
-//                         },
-//                         pc_keyboard::KeyState::Down => {
-//                             serial.write(b'1').unwrap();
-//                         },
-//                         pc_keyboard::KeyState::SingleShot => {
-//                             serial.write(b'1').unwrap();
-//                         },
-
-//                     }
-
-//                     serial.write(event.code).unwrap();
-
-//                     match event.state {
-//                         pc_keyboard::KeyState::Up => {
-//                             match map_keycode(event.code) {
-//                                 Some(keycode_event) => {
-//                                     info!("Sending: Up {}", keycode_event);
-//                                     serial.write(b'1').unwrap();
-//                                     serial.write(keycode_event as u8).unwrap();
-//                                 },
-//                                 None => {}
-//                             }
-//                         },
-//                         pc_keyboard::KeyState::Down => {
-//                             match map_keycode(event.code) {
-//                                 Some(keycode_event) => {
-//                                     info!("Sending: Down {}", keycode_event);
-//                                     serial.write(b'0').unwrap();
-//                                     serial.write(keycode_event as u8).unwrap();
-//                                 },
-//                                 None => {}
-//                             }
-//                         }
-// ,
-//                         pc_keyboard::KeyState::SingleShot => {},
-//                     }
-
-//                 }
-//                 Ok(None) => (),
-//                 Err(e) => {
-//                     error!("Error decoding: {:?}", e);
-//                 }
-//             }
+            match serial.write(byte) {
+                Ok(_) => info!("Sent byte: {}", byte),
+                Err(_) => error!("Error sending byte: {}", byte),
+            }
         }
     }
 }
