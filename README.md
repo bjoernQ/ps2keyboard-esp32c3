@@ -64,9 +64,12 @@ The example converts keyboard to serial which can be then consumed by other boar
 The receiver board can use [pc-keyboard crate](https://crates.io/crates/pc-keyboard) to decode signals. The following connection is used in [RustZX-ESP32](https://github.com/georgik/rustzx-esp32/tree/main/m5stack-cores3) project.
 
 ```
-  ESP32-C3 Converter                      ESP32-S3 receiver
+  ESP32-C3 Converter                         ESP32-S3 Receiver
+
      RX IO4 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ TX IO17
+
      TX IO5 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ RX IO18
+
      GND    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ GND
 ```
 
