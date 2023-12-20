@@ -4,7 +4,7 @@
 
 use embassy_executor::Spawner;
 use hal::{
-    clock::ClockControl, embassy, gpio::{Gpio1, Gpio2, OpenDrain, Output},
+    clock::ClockControl, gpio::{Gpio1, Gpio2, OpenDrain, Output},
     peripherals::{Peripherals, UART1}, prelude::*, uart::{config::{Config, DataBits, Parity, StopBits}, UartTx}, Uart, IO,
 };
 use esp_backtrace as _;
@@ -38,11 +38,12 @@ async fn uart_writer(mut uart: UartTx<'static, UART1>) {
 async fn ps2_reader(mut data: Gpio1<Output<OpenDrain>>, mut clk: Gpio2<Output<OpenDrain>>) {
     let mut bit_count: usize = 0;
     let mut current_byte: u8 = 0;
+    let mut last_clk_state = clk.is_high().unwrap();
 
     loop {
-        // Polling the clock line for falling edge
-        // This is a simplified version, actual implementation may need debouncing
-        if clk.is_low().unwrap() {
+        let clk_state = clk.is_high().unwrap();
+        // Detect falling edge
+        if last_clk_state && !clk_state {
             // Reading data on falling edge
             let bit = if data.is_high().unwrap() { 1 } else { 0 };
 
@@ -64,11 +65,11 @@ async fn ps2_reader(mut data: Gpio1<Output<OpenDrain>>, mut clk: Gpio2<Output<Op
                 bit_count = 0;
                 current_byte = 0;
             }
-
-            // Delay to prevent busy waiting
-            Timer::after(Duration::from_millis(1)).await;
-
         }
+        last_clk_state = clk_state;
+
+        // Yield to other tasks
+        Timer::after(Duration::from_micros(50)).await;
     }
 }
 
