@@ -12,6 +12,7 @@ use embassy_time::{Duration, Timer};
 use hal::uart::TxRxPins;
 use embassy_sync::pipe::Pipe;
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
+use hal::gpio::{PullDown, PullUp, Input};
 use log::{error, info};
 use embedded_hal_async::digital::Wait;
 
@@ -41,11 +42,22 @@ async fn ps2_reader(mut data: Gpio1<Output<OpenDrain>>, mut clk: Gpio2<Output<Op
     let mut bit_count: usize = 0;
     let mut current_byte: u8 = 0;
 
-    info!("PS2 Reader started");
+    info!("PS/2 Reader started");
+
+    data.set_low().unwrap();
+    clk.set_low().unwrap();
+
+    data.set_high().unwrap();
+    clk.set_high().unwrap();
+
+    info!("Waiting for PS/2 signal");
+
     loop {
         // Asynchronously wait for falling edge on the clock line
-        clk.wait_for_falling_edge().await.unwrap();
-        info!("Falling edge");
+        match clk.wait_for_falling_edge().await {
+            Ok(_) => info!("Falling edge"),
+            Err(_) => error!("Error waiting for falling edge"),
+        }
 
         // Reading data on falling edge
         let bit = if data.is_high().unwrap() { 1 } else { 0 };
@@ -89,7 +101,13 @@ async fn main(spawner: Spawner) {
     let serial_tx = io.pins.gpio5.into_push_pull_output();
     let serial_rx = io.pins.gpio4.into_floating_input();
     let uart_pins = TxRxPins::new_tx_rx(serial_tx, serial_rx);
-    let mut uart = Uart::new_with_config(peripherals.UART1, Config { baudrate: 115200, data_bits: DataBits::DataBits8, parity: Parity::ParityNone, stop_bits: StopBits::STOP1, }, Some(uart_pins), &clocks);
+    let uart_config = Config {
+        baudrate: 115200,
+        data_bits: DataBits::DataBits8,
+        parity: Parity::ParityNone,
+        stop_bits: StopBits::STOP1,
+    };
+    let mut uart = Uart::new_with_config(peripherals.UART1, uart_config, Some(uart_pins), &clocks);
     let (uart_tx, _uart_rx) = uart.split();
 
     // Spawn the tasks
