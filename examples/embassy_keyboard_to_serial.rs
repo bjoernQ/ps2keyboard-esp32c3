@@ -5,11 +5,10 @@
 use embassy_executor::Spawner;
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::pipe::Pipe;
-use embassy_time::{Duration, Timer};
+use embassy_time::Timer;
 use embedded_hal_async::digital::Wait;
 use esp_backtrace as _;
 use hal::embassy;
-use hal::gpio::{Input, PullDown, PullUp};
 use hal::uart::TxRxPins;
 use hal::{
     clock::{ClockControl, CpuClock},
@@ -111,8 +110,8 @@ async fn main(spawner: Spawner) {
     );
 
     let io = IO::new(peripherals.GPIO, peripherals.IO_MUX);
-    let mut clk = io.pins.gpio2.into_open_drain_output();
-    let mut data = io.pins.gpio1.into_open_drain_output();
+    let clk = io.pins.gpio2.into_open_drain_output();
+    let data = io.pins.gpio1.into_open_drain_output();
     let serial_tx = io.pins.gpio5.into_push_pull_output();
     let serial_rx = io.pins.gpio4.into_floating_input();
     let uart_pins = TxRxPins::new_tx_rx(serial_tx, serial_rx);
@@ -122,7 +121,7 @@ async fn main(spawner: Spawner) {
         parity: Parity::ParityNone,
         stop_bits: StopBits::STOP1,
     };
-    let mut uart = Uart::new_with_config(peripherals.UART1, uart_config, Some(uart_pins), &clocks);
+    let uart = Uart::new_with_config(peripherals.UART1, uart_config, Some(uart_pins), &clocks);
     let (uart_tx, _uart_rx) = uart.split();
 
     // Spawn the tasks
