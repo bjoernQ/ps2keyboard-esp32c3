@@ -4,7 +4,8 @@
 
 use embassy_executor::Spawner;
 use hal::{
-    clock::ClockControl, gpio::{Gpio1, Gpio2, OpenDrain, Output},
+    clock::{ClockControl, CpuClock},
+    gpio::{Gpio1, Gpio2, OpenDrain, Output},
     peripherals::{Peripherals, UART1}, prelude::*, uart::{config::{Config, DataBits, Parity, StopBits}, UartTx}, Uart, IO,
 };
 use esp_backtrace as _;
@@ -94,7 +95,9 @@ async fn ps2_reader(mut data: Gpio1<Output<OpenDrain>>, mut clk: Gpio2<Output<Op
 async fn main(spawner: Spawner) {
     let peripherals = Peripherals::take();
     let system = peripherals.SYSTEM.split();
-    let clocks = ClockControl::boot_defaults(system.clock_control).freeze();
+
+    // We need to work at 160MHz to make PS/2 decoding work in combination with Embassy
+    let clocks = ClockControl::configure(system.clock_control, CpuClock::Clock160MHz).freeze();
 
     esp_println::logger::init_logger_from_env();
 
