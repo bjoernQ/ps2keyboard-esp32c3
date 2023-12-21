@@ -13,6 +13,7 @@ use hal::uart::TxRxPins;
 use embassy_sync::pipe::Pipe;
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use log::{error, info};
+use embedded_hal_async::digital::Wait;
 
 // Size of the Pipe buffer
 const PIPE_BUF_SIZE: usize = 5;
@@ -22,6 +23,7 @@ static PIPE: Pipe<CriticalSectionRawMutex, PIPE_BUF_SIZE> = Pipe::new();
 
 #[embassy_executor::task]
 async fn uart_writer(mut uart: UartTx<'static, UART1>) {
+    info!("UART Writer started");
     loop {
         let mut byte = [0u8];
         let bytes_read = PIPE.read(&mut byte).await;
@@ -38,40 +40,37 @@ async fn uart_writer(mut uart: UartTx<'static, UART1>) {
 async fn ps2_reader(mut data: Gpio1<Output<OpenDrain>>, mut clk: Gpio2<Output<OpenDrain>>) {
     let mut bit_count: usize = 0;
     let mut current_byte: u8 = 0;
-    let mut last_clk_state = clk.is_high().unwrap();
 
+    info!("PS2 Reader started");
     loop {
-        let clk_state = clk.is_high().unwrap();
-        // Detect falling edge
-        if last_clk_state && !clk_state {
-            // Reading data on falling edge
-            let bit = if data.is_high().unwrap() { 1 } else { 0 };
+        // Asynchronously wait for falling edge on the clock line
+        clk.wait_for_falling_edge().await.unwrap();
+        info!("Falling edge");
 
-            // Assemble the byte
-            if bit_count > 0 && bit_count < 9 {
-                current_byte >>= 1;
-                current_byte |= bit << 7;
-            }
+        // Reading data on falling edge
+        let bit = if data.is_high().unwrap() { 1 } else { 0 };
 
-            bit_count += 1;
-
-            // Once a full byte is received
-            if bit_count == 11 {
-                info!("Sending byte: {}", current_byte);
-                let bytes_written = PIPE.write(&[current_byte]).await;
-                if bytes_written != 1 {
-                    panic!("Failed to write to Pipe");
-                }
-                bit_count = 0;
-                current_byte = 0;
-            }
+        // Assemble the byte
+        if bit_count > 0 && bit_count < 9 {
+            current_byte >>= 1;
+            current_byte |= bit << 7;
         }
-        last_clk_state = clk_state;
 
-        // Yield to other tasks
-        Timer::after(Duration::from_micros(50)).await;
+        bit_count += 1;
+
+        // Once a full byte is received
+        if bit_count == 11 {
+            info!("Sending byte: {}", current_byte);
+            let bytes_written = PIPE.write(&[current_byte]).await;
+            if bytes_written != 1 {
+                panic!("Failed to write to Pipe");
+            }
+            bit_count = 0;
+            current_byte = 0;
+        }
     }
 }
+
 
 
 #[main]

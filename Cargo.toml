@@ -13,31 +13,18 @@ esp-backtrace = { version = "0.9.0", features = ["esp32c3", "print-uart", "panic
 pc-keyboard = "0.7.0"
 critical-section = "1.1.1"
 log = "0.4.14"
-static_cell = { version = "2.0.0", features = ["nightly"] }
 
-# Optional embassy dependencies
-[dependencies.embassy-sync]
-version = "0.5.0"
-optional = true
-
-[dependencies.embassy-futures]
-version = "0.1.0"
-optional = true
-
-[dependencies.embassy-executor]
-version = "0.4.0"
-package = "embassy-executor"
-features = ["nightly", "integrated-timers"]
-optional = true
-
-[dependencies.embassy-time]
-version = "0.2.0"
-optional = true
+# Async dependencies
+embedded-hal-async = { version = "=1.0.0-rc.2", optional = true }
+embassy-sync = { version = "0.5.0",optional = true }
+embassy-futures = { version = "0.1.0", optional = true }
+embassy-executor = { version = "0.4.0", package = "embassy-executor", features = ["nightly", "integrated-timers"], optional = true }
+embassy-time = { version = "0.2.0", optional = true }
 
 # Features
 [features]
-default = []
-embassy = ["hal/embassy", "hal/async", "hal/embassy-time-timg0", "hal/rt", "hal/embassy-executor-thread", "embassy-sync", "embassy-futures", "embassy-executor", "embassy-time"]
+default = [ "hal" ]
+embassy = [ "hal/embassy", "hal/async", "hal/embassy-time-timg0", "hal/rt", "hal/embassy-executor-thread", "embedded-hal-async", "embassy-sync", "embassy-futures", "embassy-executor", "embassy-time" ]
 
 # Examples configuration
 [[example]]
