@@ -124,6 +124,12 @@ pub struct SimpleQueue<T, const N: usize> {
     write_index: usize,
 }
 
+impl<T, const N: usize> Default for SimpleQueue<T, N> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<T, const N: usize> SimpleQueue<T, N> {
     pub fn new() -> SimpleQueue<T, N> {
         let mut queue = unsafe {
