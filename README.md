@@ -74,3 +74,12 @@ The receiver board can use [pc-keyboard crate](https://crates.io/crates/pc-keybo
 ```
 
 Run: `cargo run --release --example keyboard_to_serial`
+
+### Keyboard to serial converter - Embassy
+
+Async implementation of the converter with Embassy.
+
+Note: CPU must be clocked at 160MHz to decode values properly,
+the frequency 80 MHz is not sufficient.
+
+Run: `cargo run --release --example embassy_keyboard_to_serial --features embassy`

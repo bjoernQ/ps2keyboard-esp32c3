@@ -3,20 +3,26 @@
 #![feature(type_alias_impl_trait)]
 
 use embassy_executor::Spawner;
+use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
+use embassy_sync::pipe::Pipe;
+use embassy_time::{Duration, Timer};
+use embedded_hal_async::digital::Wait;
+use esp_backtrace as _;
+use hal::embassy;
+use hal::gpio::{Input, PullDown, PullUp};
+use hal::uart::TxRxPins;
 use hal::{
     clock::{ClockControl, CpuClock},
     gpio::{Gpio1, Gpio2, OpenDrain, Output},
-    peripherals::{Peripherals, UART1}, prelude::*, uart::{config::{Config, DataBits, Parity, StopBits}, UartTx}, Uart, IO,
+    peripherals::{Peripherals, UART1},
+    prelude::*,
+    uart::{
+        config::{Config, DataBits, Parity, StopBits},
+        UartTx,
+    },
+    Uart, IO,
 };
-use esp_backtrace as _;
-use hal::embassy;
-use embassy_time::{Duration, Timer};
-use hal::uart::TxRxPins;
-use embassy_sync::pipe::Pipe;
-use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
-use hal::gpio::{PullDown, PullUp, Input};
 use log::{error, info};
-use embedded_hal_async::digital::Wait;
 
 // Size of the Pipe buffer
 const PIPE_BUF_SIZE: usize = 5;
@@ -81,22 +87,18 @@ async fn ps2_reader(mut data: Gpio1<Output<OpenDrain>>, mut clk: Gpio2<Output<Op
                     bit_count = 0;
                     current_byte = 0;
                 }
-
             }
             Err(_) => error!("Error waiting for falling edge"),
         }
-
     }
 }
-
-
 
 #[main]
 async fn main(spawner: Spawner) {
     let peripherals = Peripherals::take();
     let system = peripherals.SYSTEM.split();
 
-    // We need to work at 160MHz to make PS/2 decoding work in combination with Embassy
+    // The clock must operate at 160MHz to make PS/2 decoding work in combination with Embassy
     let clocks = ClockControl::configure(system.clock_control, CpuClock::Clock160MHz).freeze();
 
     esp_println::logger::init_logger_from_env();
