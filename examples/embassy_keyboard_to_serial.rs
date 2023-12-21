@@ -8,6 +8,7 @@ use hal::{
     peripherals::{Peripherals, UART1}, prelude::*, uart::{config::{Config, DataBits, Parity, StopBits}, UartTx}, Uart, IO,
 };
 use esp_backtrace as _;
+use hal::embassy;
 use embassy_time::{Duration, Timer};
 use hal::uart::TxRxPins;
 use embassy_sync::pipe::Pipe;
@@ -50,36 +51,40 @@ async fn ps2_reader(mut data: Gpio1<Output<OpenDrain>>, mut clk: Gpio2<Output<Op
     data.set_high().unwrap();
     clk.set_high().unwrap();
 
+    Timer::after_millis(250).await;
+
     info!("Waiting for PS/2 signal");
 
     loop {
         // Asynchronously wait for falling edge on the clock line
         match clk.wait_for_falling_edge().await {
-            Ok(_) => info!("Falling edge"),
+            Ok(_) => {
+                // Reading data on falling edge
+                let bit = if data.is_high().unwrap() { 1 } else { 0 };
+
+                // Assemble the byte
+                if bit_count > 0 && bit_count < 9 {
+                    current_byte >>= 1;
+                    current_byte |= bit << 7;
+                }
+
+                bit_count += 1;
+
+                // Once a full byte is received
+                if bit_count == 11 {
+                    let bytes_written = PIPE.write(&[current_byte]).await;
+                    if bytes_written != 1 {
+                        error!("Failed to write to pipe");
+                        break;
+                    }
+                    bit_count = 0;
+                    current_byte = 0;
+                }
+
+            }
             Err(_) => error!("Error waiting for falling edge"),
         }
 
-        // Reading data on falling edge
-        let bit = if data.is_high().unwrap() { 1 } else { 0 };
-
-        // Assemble the byte
-        if bit_count > 0 && bit_count < 9 {
-            current_byte >>= 1;
-            current_byte |= bit << 7;
-        }
-
-        bit_count += 1;
-
-        // Once a full byte is received
-        if bit_count == 11 {
-            info!("Sending byte: {}", current_byte);
-            let bytes_written = PIPE.write(&[current_byte]).await;
-            if bytes_written != 1 {
-                panic!("Failed to write to Pipe");
-            }
-            bit_count = 0;
-            current_byte = 0;
-        }
     }
 }
 
@@ -94,6 +99,11 @@ async fn main(spawner: Spawner) {
     esp_println::logger::init_logger_from_env();
 
     info!("Starting");
+
+    embassy::init(
+        &clocks,
+        hal::timer::TimerGroup::new(peripherals.TIMG0, &clocks).timer0,
+    );
 
     let io = IO::new(peripherals.GPIO, peripherals.IO_MUX);
     let mut clk = io.pins.gpio2.into_open_drain_output();
