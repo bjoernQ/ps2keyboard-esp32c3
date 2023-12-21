@@ -5,21 +5,20 @@ use core::cell::RefCell;
 
 use core::mem::MaybeUninit;
 use critical_section::Mutex;
+use esp_backtrace as _;
 use hal::{
     clock::ClockControl,
     gpio::{Event, Gpio1, Gpio2, OpenDrain, Output},
     interrupt,
     peripherals::{self, Peripherals},
     prelude::*,
-    Cpu, IO,
     uart::{
         config::{Config, DataBits, Parity, StopBits},
         TxRxPins,
     },
-    Uart
+    Cpu, Uart, IO,
 };
-use esp_backtrace as _;
-use log::{info, error};
+use log::{error, info};
 
 static CLK: Mutex<RefCell<Option<Gpio2<Output<OpenDrain>>>>> = Mutex::new(RefCell::new(None));
 static DATA: Mutex<RefCell<Option<Gpio1<Output<OpenDrain>>>>> = Mutex::new(RefCell::new(None));
@@ -42,10 +41,7 @@ fn main() -> ! {
     let serial_tx = io.pins.gpio5.into_push_pull_output();
     let serial_rx = io.pins.gpio4.into_floating_input();
 
-    let pins = TxRxPins::new_tx_rx(
-        serial_tx,
-        serial_rx,
-    );
+    let pins = TxRxPins::new_tx_rx(serial_tx, serial_rx);
 
     let config = Config {
         baudrate: 115200,
@@ -140,6 +136,12 @@ pub struct SimpleQueue<T, const N: usize> {
     data: [Option<T>; N],
     read_index: usize,
     write_index: usize,
+}
+
+impl<T, const N: usize> Default for SimpleQueue<T, N> {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl<T, const N: usize> SimpleQueue<T, N> {

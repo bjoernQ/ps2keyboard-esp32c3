@@ -5,6 +5,8 @@ use core::cell::RefCell;
 
 use core::mem::MaybeUninit;
 use critical_section::Mutex;
+use esp_backtrace as _;
+use esp_println::println;
 use hal::{
     gpio::{Event, Gpio1, Gpio2, OpenDrain, Output},
     interrupt,
@@ -12,8 +14,6 @@ use hal::{
     prelude::*,
     Cpu, IO,
 };
-use esp_backtrace as _;
-use esp_println::println;
 use pc_keyboard::{layouts, HandleControl, ScancodeSet2};
 
 static CLK: Mutex<RefCell<Option<Gpio2<Output<OpenDrain>>>>> = Mutex::new(RefCell::new(None));
@@ -122,6 +122,12 @@ pub struct SimpleQueue<T, const N: usize> {
     data: [Option<T>; N],
     read_index: usize,
     write_index: usize,
+}
+
+impl<T, const N: usize> Default for SimpleQueue<T, N> {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl<T, const N: usize> SimpleQueue<T, N> {
